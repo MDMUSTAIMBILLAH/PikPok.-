@@ -1,0 +1,3621 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pik-Pok</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js">
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            height: 100vh;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-width: 480px;
+            margin: 0 auto;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid #222;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 8px 0 env(safe-area-inset-bottom, 8px) 0;
+            z-index: 50;
+        }
+        .bottom-nav button {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            cursor: pointer;
+            padding: 4px 12px;
+            transition: color 0.2s;
+            position: relative;
+        }
+        .bottom-nav button .nav-icon {
+            font-size: 24px;
+            line-height: 1;
+        }
+        .bottom-nav button .nav-label {
+            font-size: 10px;
+            font-weight: 500;
+        }
+        .bottom-nav button.active {
+            color: #ff6b6b;
+        }
+        .bottom-nav button .badge {
+            position: absolute;
+            top: 0;
+            right: 4px;
+            background: #ff4757;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+        }
+        .bottom-nav .add-btn .nav-icon {
+            background: linear-gradient(45deg, #ff6b6b, #ffd93d);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-top: -16px;
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+        }
+        .bottom-nav .add-btn .nav-label {
+            margin-top: 2px;
+        }
+
+        .video-feed {
+            height: 100vh;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 80px;
+        }
+        .video-feed::-webkit-scrollbar {
+            display: none;
+        }
+        .video-item {
+            height: 100vh;
+            width: 100%;
+            scroll-snap-align: start;
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .video-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .video-item .like-animation {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 80px;
+            z-index: 15;
+            pointer-events: none;
+            opacity: 0;
+            transition: none;
+            text-shadow: 0 0 40px rgba(255, 107, 107, 0.5);
+        }
+        .video-item .like-animation.show {
+            animation: likePop 0.6s ease-out forwards;
+        }
+        @keyframes likePop {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0;
+            }
+            30% {
+                transform: translate(-50%, -50%) scale(1.3);
+                opacity: 1;
+            }
+            70% {
+                transform: translate(-50%, -50%) scale(1.1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0;
+            }
+        }
+        .video-item .video-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 16px 100px 16px;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.7) 70%);
+            pointer-events: none;
+        }
+        .video-item .video-overlay .video-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+        }
+        .video-item .video-overlay .video-user {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        .video-item .video-overlay .video-user .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #444;
+            overflow: hidden;
+            border: 2px solid #ff6b6b;
+            flex-shrink: 0;
+        }
+        .video-item .video-overlay .video-user .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .video-item .video-overlay .video-user .username {
+            font-size: 15px;
+            font-weight: 600;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+        }
+        .video-item .video-overlay .video-desc {
+            font-size: 14px;
+            color: #ddd;
+            margin-top: 4px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .video-item .side-actions {
+            position: absolute;
+            right: 12px;
+            bottom: 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .video-item .side-actions button {
+            pointer-events: auto;
+            background: none;
+            border: none;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            font-size: 12px;
+            cursor: pointer;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+            transition: transform 0.2s;
+        }
+        .video-item .side-actions button:active {
+            transform: scale(0.85);
+        }
+        .video-item .side-actions button .icon {
+            font-size: 32px;
+            line-height: 1;
+        }
+        .video-item .side-actions button .count {
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .video-item .side-actions button.liked .icon {
+            color: #ff6b6b;
+        }
+        .duration-badge {
+            position: absolute;
+            bottom: 80px;
+            right: 12px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 5;
+        }
+
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 20;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
+            pointer-events: none;
+        }
+        .top-header .header-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            pointer-events: auto;
+        }
+        .top-header .header-tabs {
+            display: flex;
+            gap: 12px;
+            pointer-events: auto;
+        }
+        .top-header .header-tabs button {
+            background: none;
+            border: none;
+            color: #888;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            padding: 4px 2px;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .top-header .header-tabs button.active {
+            color: #ff6b6b;
+            border-bottom-color: #ff6b6b;
+        }
+        .top-header .header-actions {
+            display: flex;
+            gap: 8px;
+            pointer-events: auto;
+        }
+        .top-header .header-actions button {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+        .avatar-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: #333;
+            border: 2px solid #ff6b6b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .avatar-btn img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .search-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            z-index: 180;
+            padding: 20px;
+        }
+        .search-modal.show {
+            display: flex;
+            flex-direction: column;
+        }
+        .search-box {
+            max-width: 480px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        .search-box .search-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .search-box .search-header input {
+            flex: 1;
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 24px;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+        }
+        .search-box .search-header input:focus {
+            border-color: #ff6b6b;
+        }
+        .search-box .search-header button {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .search-box .search-results {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: 80vh;
+            overflow-y: auto;
+            padding-bottom: 20px;
+        }
+        .search-box .search-results .sr-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #141414;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #1a1a1a;
+            cursor: default;
+        }
+        .search-box .search-results .sr-item .sr-thumb {
+            width: 60px;
+            height: 80px;
+            border-radius: 8px;
+            background: #222;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .search-box .search-results .sr-item .sr-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .search-box .search-results .sr-item .sr-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .search-box .search-results .sr-item .sr-info h4 {
+            font-size: 15px;
+            color: #fff;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .search-box .search-results .sr-item .sr-info .sr-meta {
+            font-size: 13px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .search-box .search-results .sr-item .sr-info .sr-meta .sr-user {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .search-box .search-results .sr-item .sr-info .sr-meta .sr-user:hover {
+            color: #ff6b6b;
+        }
+        .search-box .search-results .sr-item .sr-actions {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .search-box .search-results .sr-item .sr-actions button {
+            background: none;
+            border: none;
+            color: #ff6b6b;
+            font-size: 13px;
+            cursor: pointer;
+            padding: 6px 16px;
+            border-radius: 20px;
+            background: #1a1a1a;
+            transition: 0.2s;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .search-box .search-results .sr-item .sr-actions button.following {
+            background: #2a2a2a;
+            color: #aaa;
+        }
+        .search-box .search-results .sr-item .sr-actions button:hover {
+            opacity: 0.8;
+        }
+        .search-box .search-results .sr-item .sr-actions .video-play {
+            background: #ff6b6b;
+            color: #fff;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .search-box .search-results .sr-item .sr-actions .video-play:hover {
+            background: #ff4757;
+        }
+        .search-box .search-results .sr-divider {
+            color: #555;
+            font-size: 13px;
+            padding: 8px 0 4px 0;
+            border-bottom: 1px solid #222;
+        }
+        .no-result {
+            text-align: center;
+            color: #666;
+            padding: 40px 0;
+        }
+
+        .loading-spinner {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 30;
+            text-align: center;
+            color: #888;
+        }
+        .loading-spinner .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #222;
+            border-top: 4px solid #ff6b6b;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .no-videos {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 25;
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+        .no-videos .icon {
+            font-size: 64px;
+            display: block;
+            margin-bottom: 16px;
+        }
+        .no-videos h3 {
+            color: #aaa;
+            margin-bottom: 8px;
+        }
+
+        .add-video-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 60;
+            padding: 20px;
+        }
+        .add-video-modal.show {
+            display: flex;
+        }
+        .add-video-box {
+            background: #141414;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 400px;
+            width: 100%;
+            border: 1px solid #333;
+        }
+        .add-video-box h2 {
+            text-align: center;
+            margin-bottom: 16px;
+            font-size: 20px;
+            color: #fff;
+        }
+        .add-video-box input {
+            width: 100%;
+            padding: 10px 14px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 10px;
+            outline: none;
+        }
+        .add-video-box input:focus {
+            border-color: #ff6b6b;
+        }
+        .add-video-box .add-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(45deg, #ff6b6b, #ff4757);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .auth-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 20px;
+        }
+        .auth-modal.show {
+            display: flex;
+        }
+        .auth-box {
+            background: #141414;
+            border-radius: 16px;
+            padding: 30px 24px;
+            max-width: 380px;
+            width: 100%;
+            border: 1px solid #333;
+        }
+        .auth-box h2 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #ff6b6b, #ffd93d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .auth-box input {
+            width: 100%;
+            padding: 12px 14px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 12px;
+            outline: none;
+        }
+        .auth-box input:focus {
+            border-color: #ff6b6b;
+        }
+        .auth-box .auth-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(45deg, #ff6b6b, #ff4757);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .auth-box .auth-switch {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .auth-box .auth-switch span {
+            color: #ff6b6b;
+            font-weight: 600;
+        }
+        .auth-box .close-auth {
+            float: right;
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .auth-error {
+            color: #ff4757;
+            font-size: 13px;
+            text-align: center;
+            margin-bottom: 10px;
+            display: none;
+        }
+
+        .profile-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            z-index: 100;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .profile-modal.show {
+            display: block;
+        }
+        .profile-modal .profile-content {
+            max-width: 480px;
+            margin: 0 auto;
+            padding-top: 20px;
+            padding-bottom: 100px;
+        }
+        .profile-modal .close-profile {
+            float: right;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 28px;
+            cursor: pointer;
+            z-index: 10;
+        }
+        .profile-modal .profile-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #222;
+        }
+        .profile-modal .profile-header .big-avatar {
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            background: #333;
+            overflow: hidden;
+            border: 3px solid #ff6b6b;
+            margin-bottom: 12px;
+        }
+        .profile-modal .profile-header .big-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .profile-modal .profile-header .profile-name {
+            font-size: 22px;
+            font-weight: 700;
+        }
+        .profile-modal .profile-stats {
+            display: flex;
+            justify-content: space-around;
+            padding: 16px 0;
+            border-bottom: 1px solid #222;
+            cursor: pointer;
+        }
+        .profile-modal .profile-stats .stat {
+            text-align: center;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .profile-modal .profile-stats .stat:hover {
+            background: #1a1a1a;
+        }
+        .profile-modal .profile-stats .stat .num {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .profile-modal .profile-stats .stat .label {
+            font-size: 13px;
+            color: #888;
+        }
+        .profile-modal .profile-actions {
+            display: flex;
+            gap: 12px;
+            padding: 16px 0;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .profile-modal .profile-actions button {
+            padding: 10px 32px;
+            border: none;
+            border-radius: 24px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .profile-modal .profile-actions .follow-btn {
+            background: #ff6b6b;
+            color: #fff;
+        }
+        .profile-modal .profile-actions .follow-btn.following {
+            background: #333;
+            color: #fff;
+        }
+        .profile-modal .profile-actions .message-btn {
+            background: #333;
+            color: #fff;
+        }
+        .profile-modal .profile-actions .settings-btn {
+            background: #333;
+            color: #fff;
+        }
+        .profile-modal .profile-actions .block-btn {
+            background: #2a1a1a;
+            color: #ff4757;
+            border: 1px solid #ff4757;
+        }
+        .profile-modal .profile-videos {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 3px;
+            padding-top: 12px;
+        }
+        .profile-modal .profile-videos .grid-item {
+            aspect-ratio: 1;
+            background: #1a1a1a;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+        }
+        .profile-modal .profile-videos .grid-item img,
+        .profile-modal .profile-videos .grid-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .profile-modal .profile-videos .grid-item .grid-stats {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            right: 4px;
+            display: flex;
+            gap: 8px;
+            font-size: 10px;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .profile-modal .profile-videos .grid-item .delete-btn {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(255, 0, 0, 0.8);
+            border: none;
+            color: #fff;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .profile-modal .profile-videos .grid-item:hover .delete-btn {
+            display: flex;
+        }
+
+        .settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            z-index: 110;
+            padding: 20px;
+            align-items: center;
+            justify-content: center;
+        }
+        .settings-modal.show {
+            display: flex;
+        }
+        .settings-box {
+            background: #141414;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 400px;
+            width: 100%;
+            border: 1px solid #333;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .settings-box h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #fff;
+            font-size: 20px;
+        }
+        .settings-box .settings-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #333;
+            margin: 0 auto 16px;
+            overflow: hidden;
+            border: 3px solid #ff6b6b;
+        }
+        .settings-box .settings-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .settings-box label {
+            color: #aaa;
+            font-size: 13px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .settings-box input {
+            width: 100%;
+            padding: 10px 14px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 12px;
+            outline: none;
+        }
+        .settings-box input:focus {
+            border-color: #ff6b6b;
+        }
+        .settings-box .settings-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(45deg, #ff6b6b, #ff4757);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .settings-box .settings-btn.secondary {
+            background: #2a2a2a;
+            color: #ff6b6b;
+            margin-top: 8px;
+            border: 1px solid #444;
+        }
+        .settings-box .settings-btn.danger {
+            background: transparent;
+            color: #ff4757;
+            border: 1px solid #ff4757;
+            margin-top: 8px;
+        }
+        .settings-box .divider {
+            border-top: 1px solid #2a2a2a;
+            margin: 16px 0;
+        }
+        .settings-box .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+        .settings-box .toggle-row span {
+            color: #ddd;
+            font-size: 15px;
+        }
+        .settings-box .toggle-row .toggle-label {
+            color: #888;
+            font-size: 13px;
+        }
+        .switch {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            background: #333;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+            flex-shrink: 0;
+        }
+        .switch.active {
+            background: #ff6b6b;
+        }
+        .switch::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        .switch.active::after {
+            transform: translateX(22px);
+        }
+
+        .chat-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            z-index: 150;
+            flex-direction: column;
+            padding: 20px;
+        }
+        .chat-modal.show {
+            display: flex;
+        }
+        .chat-box {
+            max-width: 480px;
+            width: 100%;
+            margin: 0 auto;
+            background: #0d0d0d;
+            border-radius: 16px;
+            border: 1px solid #2a2a2a;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-height: 90vh;
+        }
+        .chat-header {
+            padding: 16px;
+            border-bottom: 1px solid #2a2a2a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .chat-header .chat-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .chat-header .chat-user .chat-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #333;
+            overflow: hidden;
+            border: 2px solid #ff6b6b;
+        }
+        .chat-header .chat-user .chat-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .chat-header .chat-user .chat-name {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .chat-header .chat-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .chat-header .chat-actions button {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .chat-header .chat-actions button:hover {
+            background: #1a1a1a;
+        }
+        .chat-header .chat-actions .delete-chat-btn {
+            color: #ff4757;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .chat-messages .msg {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 16px;
+            font-size: 14px;
+            word-break: break-word;
+            position: relative;
+        }
+        .chat-messages .msg.sent {
+            align-self: flex-end;
+            background: #ff6b6b;
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-messages .msg.received {
+            align-self: flex-start;
+            background: #2a2a2a;
+            color: #fff;
+            border-bottom-left-radius: 4px;
+        }
+        .chat-messages .msg .time {
+            font-size: 10px;
+            color: #888;
+            margin-top: 4px;
+            text-align: right;
+        }
+        .chat-messages .msg .delete-msg-btn {
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 12px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .chat-messages .msg:hover .delete-msg-btn {
+            opacity: 1;
+        }
+        .chat-messages .msg .delete-msg-btn:hover {
+            color: #ff4757;
+        }
+        .chat-input-row {
+            padding: 12px 16px;
+            border-top: 1px solid #2a2a2a;
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .chat-input-row input {
+            flex: 1;
+            padding: 10px 14px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 24px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+        .chat-input-row input:focus {
+            border-color: #ff6b6b;
+        }
+        .chat-input-row button {
+            background: #ff6b6b;
+            border: none;
+            color: #fff;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .list-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: none;
+            z-index: 160;
+            padding: 0;
+            overflow-y: auto;
+        }
+        .list-modal.show {
+            display: block;
+        }
+        .list-modal .list-header {
+            position: sticky;
+            top: 0;
+            background: #0a0a0a;
+            padding: 16px 20px;
+            border-bottom: 1px solid #1a1a1a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+        .list-modal .list-header h3 {
+            font-size: 20px;
+            color: #fff;
+            margin: 0;
+        }
+        .list-modal .list-header .close-list {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+        .list-modal .list-header .close-list:hover {
+            color: #fff;
+        }
+        .list-modal .list-body {
+            padding: 12px 16px 100px 16px;
+        }
+
+        .list-modal .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .list-modal .list-item .list-user {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            flex: 1;
+        }
+        .list-modal .list-item .list-user .list-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #333;
+            overflow: hidden;
+            border: 2px solid #ff6b6b;
+            flex-shrink: 0;
+        }
+        .list-modal .list-item .list-user .list-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .list-modal .list-item .list-user .list-name {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .list-modal .list-item .list-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .list-modal .list-item .list-actions button {
+            background: none;
+            border: none;
+            color: #ff6b6b;
+            font-size: 13px;
+            cursor: pointer;
+            padding: 6px 16px;
+            border-radius: 20px;
+            background: #1a1a1a;
+            transition: 0.2s;
+            font-weight: 600;
+        }
+        .list-modal .list-item .list-actions button.following {
+            background: #2a2a2a;
+            color: #aaa;
+        }
+        .list-modal .list-item .list-actions button:hover {
+            opacity: 0.8;
+        }
+        .list-modal .list-item .list-actions .chat-btn {
+            background: #333;
+            color: #fff;
+            font-size: 16px;
+            padding: 6px 12px;
+        }
+        .list-modal .list-item .list-actions .chat-btn:hover {
+            background: #444;
+        }
+
+        .inbox-section {
+            margin-bottom: 24px;
+        }
+        .inbox-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #141414;
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: 1px solid #1a1a1a;
+        }
+        .inbox-item:active {
+            transform: scale(0.98);
+        }
+        .inbox-item .left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .inbox-item .left .inbox-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #fff;
+        }
+        .inbox-item .left .inbox-icon.blue {
+            background: #1da1f2;
+        }
+        .inbox-item .left .inbox-icon.pink {
+            background: #ff2a5f;
+        }
+        .inbox-item .left .inbox-icon.dark {
+            background: #222;
+        }
+        .inbox-item .left .inbox-text h4 {
+            font-size: 16px;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .inbox-item .left .inbox-text p {
+            font-size: 14px;
+            color: #888;
+            margin: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 180px;
+        }
+        .inbox-item .right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .inbox-item .right .badge {
+            background: #ff2a5f;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .list-modal .empty-state {
+            text-align: center;
+            color: #666;
+            padding: 60px 20px;
+        }
+        .list-modal .empty-state .icon {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 12px;
+        }
+        .list-modal .empty-state h4 {
+            color: #aaa;
+            font-size: 18px;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .activity-item .act-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #333;
+            overflow: hidden;
+            border: 2px solid #ff6b6b;
+            flex-shrink: 0;
+        }
+        .activity-item .act-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .activity-item .act-info {
+            flex: 1;
+        }
+        .activity-item .act-info .act-name {
+            font-weight: 600;
+            font-size: 15px;
+            color: #fff;
+        }
+        .activity-item .act-info .act-desc {
+            font-size: 13px;
+            color: #888;
+            margin-top: 2px;
+        }
+        .activity-item .act-thumb {
+            width: 50px;
+            height: 70px;
+            border-radius: 8px;
+            background: #222;
+            overflow: hidden;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .activity-item .act-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .btn-back-inbox {
+            background: #222;
+            border: none;
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-back-inbox:hover {
+            background: #333;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 30, 30, 0.95);
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            z-index: 300;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            max-width: 90%;
+            text-align: center;
+            border: 1px solid #444;
+            backdrop-filter: blur(10px);
+        }
+        .toast.show {
+            opacity: 1;
+        }
+
+        .comment-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            z-index: 250;
+            padding: 20px;
+            flex-direction: column;
+        }
+        .comment-modal.show {
+            display: flex;
+        }
+        .comment-box {
+            max-width: 480px;
+            width: 100%;
+            margin: 0 auto;
+            background: #0d0d0d;
+            border-radius: 16px;
+            border: 1px solid #2a2a2a;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-height: 90vh;
+        }
+        .comment-header {
+            padding: 16px;
+            border-bottom: 1px solid #2a2a2a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .comment-header h3 {
+            font-size: 18px;
+            color: #fff;
+        }
+        .comment-header button {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .comment-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .comment-item {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            padding: 8px 0;
+            border-bottom: 1px solid #1a1a1a;
+            cursor: default;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        .comment-item .c-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #333;
+            overflow: hidden;
+            border: 2px solid #ff6b6b;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .comment-item .c-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .comment-item .c-body {
+            flex: 1;
+        }
+        .comment-item .c-body .c-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #fff;
+            cursor: pointer;
+        }
+        .comment-item .c-body .c-name:hover {
+            color: #ff6b6b;
+        }
+        .comment-item .c-body .c-text {
+            font-size: 14px;
+            color: #ddd;
+            margin-top: 2px;
+            word-break: break-word;
+        }
+        .comment-item .c-body .c-time {
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+        }
+        .comment-input-row {
+            padding: 12px 16px;
+            border-top: 1px solid #2a2a2a;
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .comment-input-row input {
+            flex: 1;
+            padding: 10px 14px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 24px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+        .comment-input-row input:focus {
+            border-color: #ff6b6b;
+        }
+        .comment-input-row button {
+            background: #ff6b6b;
+            border: none;
+            color: #fff;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .empty-comments {
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+        }
+        .empty-comments .icon {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 12px;
+        }
+
+        @media (max-width: 480px) {
+            .app-container {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="app-container">
+        <div class="top-header">
+            <div class="header-left">
+                <div class="header-tabs">
+                    <button id="forYouBtn" class="active">For You</button>
+                    <button id="followingBtn">Following</button>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button id="searchBtn" title="সার্চ করুন">🔍</button>
+                <button id="refreshBtn" title="রিফ্রেশ">🔄</button>
+                <button id="authBtn" class="avatar-btn" title="প্রোফাইল">👤</button>
+            </div>
+        </div>
+
+        <div class="video-feed" id="videoFeed"></div>
+        <div class="loading-spinner" id="loadingSpinner">
+            <div class="spinner"></div>
+            <p>ভিডিও লোড হচ্ছে...</p>
+        </div>
+        <div class="no-videos" id="noVideos" style="display:none;">
+            <span class="icon">📺</span>
+            <h3>কোনো ভিডিও নেই</h3>
+            <p style="color:#888;font-size:14px;">প্রথম ভিডিও যোগ করুন!</p>
+        </div>
+
+        <div class="bottom-nav">
+            <button id="navHome" class="active">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-label">Home</span>
+            </button>
+            <button id="navFriends">
+                <span class="nav-icon">👥</span>
+                <span class="nav-label">Friends</span>
+                <span class="badge" id="friendsBadge" style="display:none;">0</span>
+            </button>
+            <button id="navAdd" class="add-btn">
+                <span class="nav-icon">➕</span>
+                <span class="nav-label">Add</span>
+            </button>
+            <button id="navInbox">
+                <span class="nav-icon">📩</span>
+                <span class="nav-label">Inbox</span>
+                <span class="badge" id="inboxBadge" style="display:none;">0</span>
+            </button>
+            <button id="navProfile">
+                <span class="nav-icon">👤</span>
+                <span class="nav-label">Profile</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== COMMENT MODAL ===== -->
+    <div class="comment-modal" id="commentModal">
+        <div class="comment-box">
+            <div class="comment-header">
+                <h3>💬 কমেন্ট</h3>
+                <button id="closeCommentModal">✕</button>
+            </div>
+            <div class="comment-list" id="commentList">
+                <div class="empty-comments">
+                    <span class="icon">💬</span>
+                    <p>কোনো কমেন্ট নেই। প্রথম কমেন্ট করুন!</p>
+                </div>
+            </div>
+            <div class="comment-input-row">
+                <input type="text" id="commentInput" placeholder="আপনার কমেন্ট লিখুন...">
+                <button id="commentSendBtn">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="search-modal" id="searchModal">
+        <div class="search-box">
+            <div class="search-header">
+                <button id="closeSearch" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;">✕</button>
+                <input type="text" id="searchInput" placeholder="ভিডিও বা ব্যবহারকারী খুঁজুন..." autofocus>
+                <button id="performSearch" style="background:none;border:none;color:#ff6b6b;font-size:20px;cursor:pointer;">🔍</button>
+            </div>
+            <div class="search-results" id="searchResults">
+                <div class="no-result">🔍 ভিডিও বা ব্যবহারকারী খুঁজতে উপরে টাইপ করুন...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="add-video-modal" id="addVideoModal">
+        <div class="add-video-box">
+            <button class="close-add" id="closeAddVideo" style="float:right;background:none;border:none;color:#888;font-size:24px;cursor:pointer;">✕</button>
+            <h2>➕ ভিডিও যোগ করুন</h2>
+            <input type="text" id="videoLinkInput" placeholder="ভিডিও লিংক (YouTube/Vimeo)">
+            <input type="text" id="videoTitleInput" placeholder="ভিডিওর নাম (ঐচ্ছিক)">
+            <input type="text" id="videoDescInput" placeholder="বিবরণ (ঐচ্ছিক)">
+            <button class="add-btn" id="addVideoBtn">🎬 যোগ করুন</button>
+        </div>
+    </div>
+
+    <div class="auth-modal" id="authModal">
+        <div class="auth-box">
+            <button class="close-auth" id="closeAuth" style="float:right;background:none;border:none;color:#888;font-size:24px;cursor:pointer;">✕</button>
+            <h2>🎬 Pik-Pok</h2>
+            <div class="auth-error" id="authError"></div>
+
+            <div id="registerNameField" style="display:none;">
+                <input type="text" id="authName" placeholder="আপনার নাম (Required)">
+            </div>
+
+            <input type="email" id="authEmail" placeholder="ইমেইল (Required)">
+            <input type="password" id="authPassword" placeholder="পাসওয়ার্ড (৬+ অক্ষর)">
+            <input type="password" id="authConfirmPassword" placeholder="কনফার্ম পাসওয়ার্ড (Required)">
+
+            <button class="auth-btn" id="authSubmitBtn">লগইন করুন</button>
+            <div class="auth-switch">নতুন ব্যবহারকারী? <span id="authSwitch">রেজিস্টার করুন</span></div>
+        </div>
+    </div>
+
+    <div class="profile-modal" id="profileModal">
+        <div class="profile-content">
+            <button class="close-profile" id="closeProfile">✕</button>
+            <div id="profileContainer">
+                <div style="text-align:center;padding:40px 0;color:#888;">লোড হচ্ছে...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-box">
+            <button class="close-settings" id="closeSettings">✕</button>
+            <h2>⚙️ সেটিংস</h2>
+            <div class="settings-avatar" id="settingsAvatar">
+                <img id="settingsAvatarImg" src="" alt="" style="display:none;">
+                <span id="settingsAvatarText" style="display:flex;align-items:center;justify-content:center;height:100%;font-size:40px;">👤</span>
+            </div>
+            <label>📸 ছবির URL</label>
+            <input type="text" id="profilePicUrl" placeholder="https://example.com/photo.jpg">
+            <label>👤 নাম</label>
+            <input type="text" id="profileNameInput" placeholder="আপনার নাম">
+            <button class="settings-btn" id="saveSettingsBtn">💾 সেভ করুন</button>
+            <div class="divider"></div>
+            <div class="toggle-row">
+                <div><span>🔒 Private account</span><div class="toggle-label">শুধু ফলোয়াররা দেখতে পাবে</div></div>
+                <div class="switch" id="privateSwitch"></div>
+            </div>
+            <button class="settings-btn secondary" id="blockedBtn" style="margin-top:12px;">🚫 Blocked accounts</button>
+            <button class="settings-btn secondary" id="analyticsBtn" style="margin-top:8px;">📊 Analytics</button>
+            <button class="settings-btn danger" id="logoutBtn" style="margin-top:16px;">🚪 Log out</button>
+        </div>
+    </div>
+
+    <div class="chat-modal" id="chatModal">
+        <div class="chat-box">
+            <div class="chat-header">
+                <div class="chat-user">
+                    <div class="chat-avatar" id="chatAvatar"><span style="display:flex;align-items:center;justify-content:center;height:100%;font-size:18px;">👤</span></div>
+                    <span class="chat-name" id="chatUserName">User</span>
+                </div>
+                <div class="chat-actions">
+                    <button class="delete-chat-btn" id="deleteChatBtn" title="সমস্ত চ্যাট ডিলিট">🗑️</button>
+                    <button class="close-chat" id="closeChat">✕</button>
+                </div>
+            </div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input-row">
+                <input type="text" id="chatInput" placeholder="মেসেজ লিখুন...">
+                <button id="chatSendBtn">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="list-modal" id="listModal">
+        <div class="list-header">
+            <h3 id="listTitle">📩 Inbox</h3>
+            <button class="close-list" id="closeList">✕</button>
+        </div>
+        <div class="list-body" id="listContainer">
+            <div style="text-align:center;color:#888;padding:40px 0;">লোড হচ্ছে...</div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // FIREBASE CONFIG
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDEVgRtW9XkCcdWL2HVlyH3MQyfoRTMfi8",
+            authDomain: "pik-pok-42ad9.firebaseapp.com",
+            databaseURL: "https://pik-pok-42ad9-default-rtdb.firebaseio.com",
+            projectId: "pik-pok-42ad9",
+            storageBucket: "pik-pok-42ad9.appspot.com",
+            messagingSenderId: "604337407772",
+            appId: "1:604337407772:android:da71e8140de7e746e25cd9"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        // ============================================================
+        // STATE
+        // ============================================================
+        let currentUser = null;
+        let currentUserProfile = null;
+        let isLoginMode = true;
+        let feedListener = null;
+        let allVideos = [];
+        let chatListener = null;
+        let chatWithUid = null;
+        let chatWithName = 'User';
+        let currentChatId = null;
+        let currentFeedMode = 'forYou';
+        let unreadCount = 0;
+        let friendCount = 0;
+        let lastTapTime = 0;
+        let tapTimeout = null;
+        let inboxViewState = 'main';
+        let currentSearchTerm = '';
+
+        // Comment state
+        let commentVideoId = null;
+        let commentListener = null;
+
+        // ============================================================
+        // UTILITY
+        // ============================================================
+        function formatNumber(n) {
+            if (n === undefined || n === null) return '0';
+            n = Number(n);
+            if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+            if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
+            return n.toString();
+        }
+
+        function getInitials(name) {
+            if (!name) return '?';
+            return name.charAt(0).toUpperCase();
+        }
+
+        function getPlatform(url) {
+            if (!url) return 'direct';
+            if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
+            if (url.includes('vimeo.com')) return 'vimeo';
+            return 'direct';
+        }
+
+        function getVideoId(url) {
+            if (!url) return null;
+            const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?#]+)/);
+            if (yt) return yt[1];
+            const vm = url.match(/vimeo\.com\/(\d+)/);
+            if (vm) return vm[1];
+            return null;
+        }
+
+        function getThumbnail(url) {
+            const p = getPlatform(url);
+            const id = getVideoId(url);
+            if (p === 'youtube' && id) return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+            if (p === 'vimeo' && id) return `https://vumbnail.com/${id}.jpg`;
+            return null;
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            clearTimeout(t._timeout);
+            t._timeout = setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds || isNaN(seconds)) return '0:00';
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function updateBadges() {
+            const inboxBadge = document.getElementById('inboxBadge');
+            const friendsBadge = document.getElementById('friendsBadge');
+            if (unreadCount > 0) { inboxBadge.textContent = unreadCount;
+                inboxBadge.style.display = 'flex'; } else inboxBadge.style.display = 'none';
+            if (friendCount > 0) { friendsBadge.textContent = friendCount;
+                friendsBadge.style.display = 'flex'; } else friendsBadge.style.display = 'none';
+        }
+
+        // ============================================================
+        // VIDEO TAP HANDLER (SINGLE TAP = PLAY/PAUSE)
+        // ============================================================
+        function setupVideoTapHandler(videoElement, videoId) {
+            if (!videoElement) return;
+            videoElement.removeEventListener('click', videoElement._tapHandler);
+
+            const handler = function(e) {
+                e.preventDefault();
+                const currentTime = Date.now();
+                const timeSinceLastTap = currentTime - lastTapTime;
+
+                if (tapTimeout) {
+                    clearTimeout(tapTimeout);
+                    tapTimeout = null;
+                }
+
+                if (timeSinceLastTap < 300) {
+                    lastTapTime = 0;
+                    toggleLike(videoId);
+                    const item = videoElement.closest('.video-item');
+                    if (item) {
+                        let heart = item.querySelector('.like-animation');
+                        if (!heart) {
+                            heart = document.createElement('div');
+                            heart.className = 'like-animation';
+                            heart.textContent = '❤️';
+                            item.appendChild(heart);
+                        }
+                        heart.classList.remove('show');
+                        void heart.offsetWidth;
+                        heart.classList.add('show');
+                    }
+                } else {
+                    lastTapTime = currentTime;
+                    tapTimeout = setTimeout(() => {
+                        if (videoElement.paused) {
+                            videoElement.play().catch(() => {});
+                        } else {
+                            videoElement.pause();
+                        }
+                        tapTimeout = null;
+                    }, 300);
+                }
+            };
+
+            videoElement._tapHandler = handler;
+            videoElement.addEventListener('click', handler);
+            videoElement.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                handler(e);
+            });
+        }
+
+        // ============================================================
+        // VIEW COUNTER SYSTEM (Unique View)
+        // ============================================================
+        async function registerView(videoId) {
+            if (!videoId) return;
+            if (!currentUser) return;
+
+            const videoRef = db.ref(`videos/${videoId}`);
+            const viewerRef = db.ref(`videos/${videoId}/viewedBy/${currentUser.uid}`);
+
+            try {
+                const snapshot = await viewerRef.once('value');
+                if (snapshot.val() === true) return;
+
+                await viewerRef.set(true);
+                const viewSnapshot = await videoRef.child('views').once('value');
+                let currentViews = viewSnapshot.val() || 0;
+                await videoRef.update({ views: currentViews + 1 });
+
+                console.log(`Video ${videoId} view counted for user ${currentUser.uid}`);
+            } catch (e) {
+                console.error("View counting error:", e);
+            }
+        }
+
+        // ============================================================
+        // AUTH & REGISTRATION
+        // ============================================================
+        function updateAuthUI(user) {
+            const btn = document.getElementById('authBtn');
+            if (user) {
+                const photo = currentUserProfile?.photoURL || '';
+                if (photo) {
+                    btn.innerHTML = `<img src="${photo}" alt="">`;
+                } else {
+                    const name = user.displayName || user.email || 'User';
+                    btn.innerHTML = `<span>${getInitials(name)}</span>`;
+                }
+                btn.title = user.email || 'User';
+                loadUserProfile(user.uid);
+            } else {
+                btn.innerHTML = '👤';
+                btn.title = 'লগইন করুন';
+            }
+        }
+
+        async function loadUserProfile(uid) {
+            try {
+                const snap = await db.ref(`users/${uid}`).once('value');
+                const data = snap.val();
+                if (data) {
+                    currentUserProfile = data;
+                    updateAuthUI(auth.currentUser);
+                    loadNotifications(uid);
+                    loadFriends(uid);
+                } else {
+                    const user = auth.currentUser;
+                    if (user) {
+                        const newProfile = {
+                            name: user.displayName || user.email || 'User',
+                            email: user.email,
+                            photoURL: user.photoURL || '',
+                            createdAt: Date.now(),
+                            private: false,
+                            blocked: {},
+                            followersCount: 0,
+                            following: {}
+                        };
+                        await db.ref(`users/${uid}`).set(newProfile);
+                        currentUserProfile = newProfile;
+                        updateAuthUI(auth.currentUser);
+                    }
+                }
+            } catch (e) { console.error('Profile load error:', e); }
+        }
+
+        async function loadNotifications(uid) {
+            try {
+                const snap = await db.ref(`users/${uid}/notifications`).orderByChild('read').equalTo(false).once('value');
+                const data = snap.val();
+                unreadCount = data ? Object.keys(data).length : 0;
+                updateBadges();
+            } catch (e) {}
+        }
+
+        async function loadFriends(uid) {
+            try {
+                const snap = await db.ref(`users/${uid}/following`).once('value');
+                const data = snap.val();
+                friendCount = data ? Object.keys(data).length : 0;
+                updateBadges();
+            } catch (e) {}
+        }
+
+        document.getElementById('authBtn').addEventListener('click', () => {
+            if (auth.currentUser) { openProfile(auth.currentUser.uid); return; }
+            document.getElementById('authModal').classList.add('show');
+            document.getElementById('authError').style.display = 'none';
+        });
+        document.getElementById('closeAuth').addEventListener('click', () => document.getElementById('authModal').classList
+            .remove('show'));
+
+        document.getElementById('authSwitch').addEventListener('click', () => {
+            isLoginMode = !isLoginMode;
+            const nameField = document.getElementById('registerNameField');
+            const confirmPass = document.getElementById('authConfirmPassword');
+
+            if (isLoginMode) {
+                document.getElementById('authSubmitBtn').textContent = 'লগইন করুন';
+                document.getElementById('authSwitch').innerHTML = 'নতুন ব্যবহারকারী? <span>রেজিস্টার করুন</span>';
+                nameField.style.display = 'none';
+                confirmPass.style.display = 'none';
+            } else {
+                document.getElementById('authSubmitBtn').textContent = 'রেজিস্টার করুন';
+                document.getElementById('authSwitch').innerHTML = 'ইতিমধ্যে অ্যাকাউন্ট আছে? <span>লগইন করুন</span>';
+                nameField.style.display = 'block';
+                confirmPass.style.display = 'block';
+            }
+            document.getElementById('authError').style.display = 'none';
+        });
+
+        document.getElementById('authSubmitBtn').addEventListener('click', async () => {
+            const name = document.getElementById('authName').value.trim();
+            const email = document.getElementById('authEmail').value.trim();
+            const pass = document.getElementById('authPassword').value;
+            const confirmPass = document.getElementById('authConfirmPassword').value;
+
+            const errorEl = document.getElementById('authError');
+            const btn = document.getElementById('authSubmitBtn');
+
+            errorEl.style.display = 'none';
+            btn.disabled = true;
+
+            try {
+                if (isLoginMode) {
+                    if (!email || !pass) { throw new Error('ইমেইল এবং পাসওয়ার্ড দিন'); }
+                    await auth.signInWithEmailAndPassword(email, pass);
+                    document.getElementById('authModal').classList.remove('show');
+                    showToast('লগইন সফল! 🎉');
+                    loadFeed();
+                } else {
+                    if (!name) throw new Error('আপনার নাম দিন');
+                    if (!email) throw new Error('ইমেইল দিন');
+                    if (!pass || pass.length < 6) throw new Error('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে');
+                    if (pass !== confirmPass) throw new Error('পাসওয়ার্ড এবং কনফার্ম পাসওয়ার্ড মিলছে না');
+
+                    const userCredential = await auth.createUserWithEmailAndPassword(email, pass);
+                    const user = userCredential.user;
+                    await user.updateProfile({ displayName: name });
+
+                    await db.ref(`users/${user.uid}`).set({
+                        name: name,
+                        email: email,
+                        photoURL: '',
+                        createdAt: Date.now(),
+                        private: false,
+                        blocked: {},
+                        followersCount: 0,
+                        following: {}
+                    });
+
+                    document.getElementById('authModal').classList.remove('show');
+                    showToast('রেজিস্টার সফল! 🎉');
+                    loadFeed();
+                }
+            } catch (e) {
+                errorEl.textContent = e.message;
+                errorEl.style.display = 'block';
+            }
+            btn.disabled = false;
+        });
+
+        document.getElementById('authConfirmPassword').addEventListener('keydown', e => {
+            if (e.key === 'Enter') document.getElementById('authSubmitBtn').click();
+        });
+
+        auth.onAuthStateChanged((user) => {
+            currentUser = user;
+            if (user) {
+                loadUserProfile(user.uid);
+                loadFeed();
+            } else {
+                currentUserProfile = null;
+                unreadCount = 0;
+                friendCount = 0;
+                updateBadges();
+                updateAuthUI(null);
+                loadFeed();
+            }
+        });
+
+        // ============================================================
+        // VIDEO FEED
+        // ============================================================
+        function loadFeed() {
+            const feed = document.getElementById('videoFeed');
+            const spinner = document.getElementById('loadingSpinner');
+            const noVideos = document.getElementById('noVideos');
+            spinner.style.display = 'block';
+            noVideos.style.display = 'none';
+            feed.innerHTML = '';
+            if (feedListener) { feedListener();
+                feedListener = null; }
+
+            let queryRef = db.ref('videos').orderByChild('timestamp').limitToLast(30);
+
+            if (currentFeedMode === 'following' && currentUser) {
+                queryRef = db.ref('videos').orderByChild('timestamp').limitToLast(100);
+            }
+
+            feedListener = queryRef.on('value', async (snapshot) => {
+                spinner.style.display = 'none';
+                const data = snapshot.val();
+                if (!data) { noVideos.style.display = 'block';
+                    feed.innerHTML = ''; return; }
+                noVideos.style.display = 'none';
+
+                let videos = Object.entries(data).reverse();
+
+                if (currentFeedMode === 'following' && currentUser) {
+                    const followingSnap = await db.ref(`users/${currentUser.uid}/following`).once('value');
+                    const following = followingSnap.val() || {};
+                    const followingIds = Object.keys(following);
+                    videos = videos.filter(([id, video]) => {
+                        return video.uid && followingIds.includes(video.uid);
+                    });
+                    if (videos.length === 0) {
+                        noVideos.style.display = 'block';
+                        noVideos.querySelector('h3').textContent = 'কোনো ফলো করা ইউজারের ভিডিও নেই';
+                        noVideos.querySelector('p').textContent = 'এখনই কিছু ফলো করুন!';
+                        feed.innerHTML = '';
+                        return;
+                    }
+                }
+
+                allVideos = videos;
+                let html = '';
+                videos.forEach(([id, video]) => {
+                    const thumb = video.thumbnail || getThumbnail(video.url) || '';
+                    const title = video.title || 'Untitled';
+                    const username = video.username || 'Unknown';
+                    const userAvatar = video.userAvatar || '';
+                    const desc = video.description || '';
+                    const likes = video.likes ? Object.keys(video.likes).length : 0;
+                    const comments = video.comments ? Object.keys(video.comments).length : 0;
+                    const views = video.views || 0;
+                    const isLiked = video.likes && currentUser && video.likes[currentUser.uid];
+                    html += `
+                            <div class="video-item" data-id="${id}">
+                                <video src="${video.url}" preload="metadata" playsinline
+                                    poster="${thumb || ''}"
+                                    onloadedmetadata="this.parentElement.querySelector('.duration-badge').textContent = formatDuration(this.duration)"
+                                    data-video-id="${id}"></video>
+                                <span class="duration-badge">0:00</span>
+                                <div class="video-overlay">
+                                    <div class="video-title">${title}</div>
+                                    <div class="video-user" onclick="openProfile('${video.uid || ''}')">
+                                        <div class="user-avatar">${userAvatar ? `<img src="${userAvatar}" alt="">` : getInitials(username)}</div>
+                                        <span class="username">${username}</span>
+                                    </div>
+                                    ${desc ? `<div class="video-desc">${desc}</div>` : ''}
+                                </div>
+                                <div class="side-actions">
+                                    <button class="${isLiked ? 'liked' : ''}" onclick="toggleLike('${id}')">
+                                        <span class="icon">${isLiked ? '❤️' : '🤍'}</span>
+                                        <span class="count">${formatNumber(likes)}</span>
+                                    </button>
+                                    <button onclick="openComments('${id}')">
+                                        <span class="icon">💬</span>
+                                        <span class="count">${formatNumber(comments)}</span>
+                                    </button>
+                                    <button onclick="shareVideo('${id}')">
+                                        <span class="icon">🔗</span>
+                                        <span class="count">শেয়ার</span>
+                                    </button>
+                                    <div style="color:#888;font-size:11px;margin-top:4px;">👁️ ${formatNumber(views)}</div>
+                                </div>
+                            </div>
+                        `;
+                });
+                feed.innerHTML = html;
+                setTimeout(() => {
+                    const videos = feed.querySelectorAll('video');
+                    videos.forEach(v => {
+                        const id = v.dataset.videoId;
+                        if (id) {
+                            setupVideoTapHandler(v, id);
+                            registerView(id);
+                        }
+                    });
+                    const firstVideo = feed.querySelector('video');
+                    if (firstVideo) firstVideo.play().catch(() => {});
+                }, 300);
+                feed.removeEventListener('scroll', handleScroll);
+                feed.addEventListener('scroll', handleScroll);
+            });
+        }
+
+        function handleScroll() {
+            const feed = document.getElementById('videoFeed');
+            const items = feed.querySelectorAll('.video-item');
+            let activeIndex = -1;
+            items.forEach((item, i) => {
+                const rect = item.getBoundingClientRect();
+                const center = rect.top + rect.height / 2;
+                const viewCenter = window.innerHeight / 2;
+                if (Math.abs(center - viewCenter) < rect.height / 2) activeIndex = i;
+            });
+            if (activeIndex >= 0) {
+                const videos = feed.querySelectorAll('video');
+                videos.forEach((v, i) => {
+                    if (i === activeIndex) v.play().catch(() => {});
+                    else v.pause();
+                });
+            }
+        }
+
+        // ============================================================
+        // FOR YOU / FOLLOWING TABS
+        // ============================================================
+        document.getElementById('forYouBtn').addEventListener('click', () => {
+            currentFeedMode = 'forYou';
+            document.getElementById('forYouBtn').classList.add('active');
+            document.getElementById('followingBtn').classList.remove('active');
+            loadFeed();
+            document.getElementById('navHome').click();
+        });
+
+        document.getElementById('followingBtn').addEventListener('click', () => {
+            if (!currentUser) { showToast('লগইন করুন'); return; }
+            currentFeedMode = 'following';
+            document.getElementById('followingBtn').classList.add('active');
+            document.getElementById('forYouBtn').classList.remove('active');
+            loadFeed();
+            document.getElementById('navHome').click();
+        });
+
+        // ============================================================
+        // SEARCH SYSTEM (Video Title + User Name)
+        // ============================================================
+        document.getElementById('searchBtn').addEventListener('click', () => {
+            document.getElementById('searchModal').classList.add('show');
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchResults').innerHTML = '<div class="no-result">🔍 ভিডিও বা ব্যবহারকারী খুঁজতে উপরে টাইপ করুন...</div>';
+            setTimeout(() => document.getElementById('searchInput').focus(), 100);
+        });
+
+        document.getElementById('closeSearch').addEventListener('click', () => {
+            document.getElementById('searchModal').classList.remove('show');
+        });
+
+        document.getElementById('performSearch').addEventListener('click', performSearch);
+        document.getElementById('searchInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') performSearch();
+        });
+
+        async function performSearch() {
+            const term = document.getElementById('searchInput').value.trim().toLowerCase();
+            const resultsContainer = document.getElementById('searchResults');
+
+            if (!term) {
+                resultsContainer.innerHTML = '<div class="no-result">🔍 ভিডিও বা ব্যবহারকারী খুঁজতে উপরে টাইপ করুন...</div>';
+                return;
+            }
+
+            resultsContainer.innerHTML = '<div class="no-result">⏳ খোঁজা হচ্ছে...</div>';
+
+            try {
+                // 1. Search videos by title
+                const videoSnap = await db.ref('videos').orderByChild('timestamp').limitToLast(200).once('value');
+                const videoData = videoSnap.val() || {};
+                const videoEntries = Object.entries(videoData).reverse();
+
+                let matchedVideos = [];
+                for (const [id, video] of videoEntries) {
+                    const title = (video.title || '').toLowerCase();
+                    if (title.includes(term)) {
+                        matchedVideos.push({ id, ...video });
+                    }
+                }
+
+                // 2. Search users by name
+                const userSnap = await db.ref('users').once('value');
+                const userData = userSnap.val() || {};
+                const userEntries = Object.entries(userData);
+                let matchedUsers = [];
+                for (const [uid, user] of userEntries) {
+                    const name = (user.name || '').toLowerCase();
+                    if (name.includes(term) && uid !== currentUser?.uid) { // exclude self
+                        matchedUsers.push({ uid, ...user });
+                    }
+                }
+
+                // Build result HTML
+                let html = '';
+                let hasResults = false;
+
+                // ---- Videos section ----
+                if (matchedVideos.length > 0) {
+                    hasResults = true;
+                    html += `<div class="sr-divider">🎬 ভিডিও (${matchedVideos.length})</div>`;
+                    for (const video of matchedVideos) {
+                        const thumb = video.thumbnail || getThumbnail(video.url) || '';
+                        const title = video.title || 'Untitled';
+                        const username = video.username || 'Unknown';
+                        const userUid = video.uid || '';
+                        const views = video.views || 0;
+                        html += `
+                            <div class="sr-item" data-type="video" data-id="${video.id}">
+                                <div class="sr-thumb">
+                                    ${thumb ? `<img src="${thumb}" alt="">` : '🎬'}
+                                </div>
+                                <div class="sr-info">
+                                    <h4>${title}</h4>
+                                    <div class="sr-meta">
+                                        <span class="sr-user" onclick="event.stopPropagation();openProfile('${userUid}')">👤 ${username}</span>
+                                        <span>👁️ ${formatNumber(views)}</span>
+                                    </div>
+                                </div>
+                                <div class="sr-actions">
+                                    <button class="video-play" onclick="openVideoPlayer('${video.id}');document.getElementById('searchModal').classList.remove('show');">▶ দেখুন</button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                // ---- Users section ----
+                if (matchedUsers.length > 0) {
+                    hasResults = true;
+                    html += `<div class="sr-divider">👥 ব্যবহারকারী (${matchedUsers.length})</div>`;
+                    for (const user of matchedUsers) {
+                        const name = user.name || 'User';
+                        const photo = user.photoURL || '';
+                        const isFollowing = currentUser && (await db.ref(`users/${user.uid}/followers/${currentUser.uid}`).once('value')).val();
+                        const isSelf = currentUser && user.uid === currentUser.uid;
+                        html += `
+                            <div class="sr-item" data-type="user" data-uid="${user.uid}">
+                                <div class="sr-thumb" style="border-radius:50%;width:50px;height:50px;background:#222;display:flex;align-items:center;justify-content:center;font-size:24px;">
+                                    ${photo ? `<img src="${photo}" style="border-radius:50%;" alt="">` : getInitials(name)}
+                                </div>
+                                <div class="sr-info">
+                                    <h4>${name}</h4>
+                                    <div class="sr-meta">
+                                        <span>👤 প্রোফাইল</span>
+                                    </div>
+                                </div>
+                                <div class="sr-actions">
+                                    ${!isSelf && currentUser ? `
+                                        <button class="${isFollowing ? 'following' : ''}" onclick="toggleFollowFromSearch('${user.uid}', this)">
+                                            ${isFollowing ? 'Following' : 'Follow'}
+                                        </button>
+                                    ` : ''}
+                                    ${!isSelf ? `<button onclick="openProfile('${user.uid}');document.getElementById('searchModal').classList.remove('show');" style="background:#333;color:#fff;padding:6px 16px;border-radius:20px;border:none;cursor:pointer;">দেখুন</button>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                if (!hasResults) {
+                    html = `<div class="no-result">❌ "${term}" এর সাথে মেলে এমন কিছু পাওয়া যায়নি</div>`;
+                }
+
+                resultsContainer.innerHTML = html;
+            } catch (e) {
+                resultsContainer.innerHTML = '<div class="no-result">❌ ত্রুটি: ' + e.message + '</div>';
+            }
+        }
+
+        // ============================================================
+        // FOLLOW TOGGLE FROM SEARCH
+        // ============================================================
+        async function toggleFollowFromSearch(uid, buttonElement) {
+            if (!currentUser) { showToast('লগইন করুন'); return; }
+            if (uid === currentUser.uid) return;
+
+            const followerRef = db.ref(`users/${uid}/followers/${currentUser.uid}`);
+            const followingRef = db.ref(`users/${currentUser.uid}/following/${uid}`);
+
+            try {
+                const snap = await followerRef.once('value');
+                if (snap.val()) {
+                    await followerRef.remove();
+                    await followingRef.remove();
+                    const c = await db.ref(`users/${uid}/followersCount`).once('value');
+                    const cur = c.val() || 0;
+                    if (cur > 0) await db.ref(`users/${uid}/followersCount`).set(cur - 1);
+                    buttonElement.textContent = 'Follow';
+                    buttonElement.classList.remove('following');
+                    showToast('আনফলো করা হয়েছে');
+                    loadFriends(currentUser.uid);
+                } else {
+                    await followerRef.set(true);
+                    await followingRef.set(true);
+                    const c = await db.ref(`users/${uid}/followersCount`).once('value');
+                    const cur = c.val() || 0;
+                    await db.ref(`users/${uid}/followersCount`).set(cur + 1);
+                    await db.ref(`users/${uid}/notifications`).push({
+                        type: 'follow',
+                        from: currentUser.uid,
+                        fromName: currentUserProfile?.name || currentUser.email || 'User',
+                        timestamp: Date.now(),
+                        read: false
+                    });
+                    buttonElement.textContent = 'Following';
+                    buttonElement.classList.add('following');
+                    showToast('ফলো করেছেন!');
+                    loadFriends(currentUser.uid);
+                }
+            } catch (e) { showToast('ত্রুটি: ' + e.message); }
+        }
+
+        // ============================================================
+        // BOTTOM NAV
+        // ============================================================
+        document.getElementById('navHome').addEventListener('click', () => {
+            document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById('navHome').classList.add('active');
+            loadFeed();
+        });
+
+        document.getElementById('navFriends').addEventListener('click', () => {
+            document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById('navFriends').classList.add('active');
+            if (!currentUser) { showToast('লগইন করুন');
+                document.getElementById('authModal').classList.add('show'); return; }
+            showList(currentUser.uid, 'following');
+        });
+
+        document.getElementById('navAdd').addEventListener('click', () => {
+            document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById('navAdd').classList.add('active');
+            if (!currentUser) { showToast('লগইন করুন');
+                document.getElementById('authModal').classList.add('show'); return; }
+            document.getElementById('addVideoModal').classList.add('show');
+        });
+
+        document.getElementById('navInbox').addEventListener('click', () => {
+            document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById('navInbox').classList.add('active');
+            if (!currentUser) { showToast('লগইন করুন');
+                document.getElementById('authModal').classList.add('show'); return; }
+            showInboxMain();
+        });
+
+        document.getElementById('navProfile').addEventListener('click', () => {
+            document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById('navProfile').classList.add('active');
+            if (!currentUser) { showToast('লগইন করুন');
+                document.getElementById('authModal').classList.add('show'); return; }
+            openProfile(currentUser.uid);
+        });
+
+        // ============================================================
+        // INBOX
+        // ============================================================
+        async function showInboxMain() {
+            const modal = document.getElementById('listModal');
+            const container = document.getElementById('listContainer');
+            const title = document.getElementById('listTitle');
+
+            inboxViewState = 'main';
+            title.textContent = '📩 Inbox';
+            modal.classList.add('show');
+
+            let html = `
+                <div class="inbox-section">
+                    <div class="inbox-item" onclick="showFollowersList()">
+                        <div class="left">
+                            <div class="inbox-icon blue">👥</div>
+                            <div class="inbox-text">
+                                <h4>New followers</h4>
+                                <p>আপনাকে নতুন কেউ ফলো করলে এখানে দেখুন</p>
+                            </div>
+                        </div>
+                        <div class="right">
+                            <span style="color:#888;font-size:13px;">দেখুন →</span>
+                        </div>
+                    </div>
+
+                    <div class="inbox-item" onclick="showActivityList()">
+                        <div class="left">
+                            <div class="inbox-icon pink">❤️</div>
+                            <div class="inbox-text">
+                                <h4>Activity</h4>
+                                <p>কে আপনার ভিডিও লাইক দিচ্ছে তা দেখুন</p>
+                            </div>
+                        </div>
+                        <div class="right">
+                            <span style="color:#888;font-size:13px;">দেখুন →</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+            await markAllNotificationsRead();
+        }
+
+        async function markAllNotificationsRead() {
+            if (!currentUser) return;
+            try {
+                const snap = await db.ref(`users/${currentUser.uid}/notifications`).once('value');
+                const data = snap.val();
+                if (data) {
+                    const updates = {};
+                    Object.keys(data).forEach(key => {
+                        if (!data[key].read) updates[`${key}/read`] = true;
+                    });
+                    if (Object.keys(updates).length > 0) {
+                        await db.ref(`users/${currentUser.uid}/notifications`).update(updates);
+                        unreadCount = 0;
+                        updateBadges();
+                    }
+                }
+            } catch (e) {}
+        }
+
+        async function showFollowersList() {
+            if (!currentUser) return;
+            const container = document.getElementById('listContainer');
+            const title = document.getElementById('listTitle');
+
+            inboxViewState = 'followers';
+            title.textContent = '👥 New Followers';
+
+            container.innerHTML = `
+                <button class="btn-back-inbox" onclick="showInboxMain()">← Back to Inbox</button>
+                <div style="text-align:center;color:#888;padding:20px 0;">লোড হচ্ছে...</div>
+            `;
+
+            try {
+                const snap = await db.ref(`users/${currentUser.uid}/followers`).once('value');
+                const listData = snap.val() || {};
+                const userIds = Object.keys(listData);
+
+                if (userIds.length === 0) {
+                    container.innerHTML = `
+                        <button class="btn-back-inbox" onclick="showInboxMain()">← Back to Inbox</button>
+                        <div class="empty-state">
+                            <span class="icon">👤</span>
+                            <h4>এখনো কেউ ফলো করেনি</h4>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = `<button class="btn-back-inbox" onclick="showInboxMain()">← Back to Inbox</button>`;
+
+                for (const fid of userIds) {
+                    const userSnap = await db.ref(`users/${fid}`).once('value');
+                    const user = userSnap.val();
+                    if (user) {
+                        const name = user.name || 'User';
+                        const photo = user.photoURL || '';
+
+                        let isFollowing = false;
+                        const fs = await db.ref(`users/${fid}/followers/${currentUser.uid}`).once('value');
+                        isFollowing = !!fs.val();
+
+                        html += `
+                            <div class="list-item">
+                                <div class="list-user" onclick="openProfile('${fid}');document.getElementById('listModal').classList.remove('show');">
+                                    <div class="list-avatar">${photo ? `<img src="${photo}" alt="">` : getInitials(name)}</div>
+                                    <span class="list-name">${name}</span>
+                                </div>
+                                <div class="list-actions">
+                                    <button class="${isFollowing ? 'following' : ''}" onclick="toggleFollowFromInbox('${fid}')">
+                                        ${isFollowing ? 'Following' : 'Follow back'}
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML =
+                    `<button class="btn-back-inbox" onclick="showInboxMain()">← Back to Inbox</button><p style="color:#ff4757;text-align:center;padding:40px 0;">ত্রুটি: ${e.message}</p>`;
+            }
+        }
+
+        async function showActivityList() {
+            if (!currentUser) return;
+            const container = document.getElementById('listContainer');
+            const title = document.getElementById('listTitle');
+
+            inboxViewState = 'activity';
+            title.textContent = '❤️ Activity (Likes)';
+
+            container.innerHTML = `
+                <button class="btn-back-inbox" onclick="showInboxMain()">← Back to Inbox</button>
+                <div style="text-align:center;color:#888;padding:20px 0;">লোড হচ্ছে...</div>
+            `;
+
+            try {
+                const snap = await db.ref(`users/${currentUser.uid}/notifications`).orderByChild('timestamp').limitToLast(
+                    50).once('value');
+                const data = snap.val();
+
+                if (!data) {
+                    container.innerHTML = `
+                        <button class="btn-back-inbox" onclick="showInboxMain()">← Back to Inbox</button>
+                        <div class="empty-state">
+                            <span class="icon">📭</span>
+                            <h4>কোনো লাইক নোটিফিকেশন নেই</h4>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = `<button class="btn-back-inbox" onclick="showInboxMain()">← Back to Inbox</button>`;
+                const entries = Object.entries(data).reverse();
+                let foundLikes = false;
+
+                for (const [key, notif] of entries) {
+                    if (notif.type === 'like') {
+                        foundLikes = true;
+                        const fromName = notif.fromName || 'Someone';
+                        const videoId = notif.videoId || '';
+                        const videoTitle = notif.videoTitle || 'Untitled Video';
+
+                        let thumbUrl = '';
+                        if (videoId) {
+                            const vSnap = await db.ref(`videos/${videoId}`).once('value');
+                            const vData = vSnap.val();
+                            if (vData) {
+                                thumbUrl = vData.thumbnail || getThumbnail(vData.url) || '';
+                            }
+                        }
+
+                        html += `
+                            <div class="activity-item">
+                                <div class="act-avatar" onclick="openProfile('${notif.from || ''}')">
+                                    ${notif.fromAvatar ? `<img src="${notif.fromAvatar}" alt="">` : getInitials(fromName)}
+                                </div>
+                                <div class="act-info">
+                                    <div class="act-name">${fromName}</div>
+                                    <div class="act-desc">আপনার ভিডিওতে লাইক দিয়েছেন: "${videoTitle}"</div>
+                                </div>
+                                ${thumbUrl ? `
+                                    <div class="act-thumb" onclick="openVideoPlayer('${videoId}');document.getElementById('listModal').classList.remove('show');">
+                                        <img src="${thumbUrl}" alt="Thumb">
+                                    </div>
+                                ` : `<div style="color:#555;font-size:12px;">No thumb</div>`}
+                            </div>
+                        `;
+                    }
+                }
+
+                if (!foundLikes) {
+                    html += `<div class="empty-state"><span class="icon">💔</span><h4>এখনো কেউ আপনার ভিডিও লাইক দেয়নি</h4></div>`;
+                }
+
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML =
+                    `<button class="btn-back-inbox" onclick="showInboxMain()">← Back to Inbox</button><p style="color:#ff4757;text-align:center;padding:40px 0;">ত্রুটি: ${e.message}</p>`;
+            }
+        }
+
+        async function toggleFollowFromInbox(uid) {
+            if (!currentUser) { showToast('লগইন করুন'); return; }
+            if (uid === currentUser.uid) return;
+
+            const followerRef = db.ref(`users/${uid}/followers/${currentUser.uid}`);
+            const followingRef = db.ref(`users/${currentUser.uid}/following/${uid}`);
+
+            try {
+                const snap = await followerRef.once('value');
+                if (snap.val()) {
+                    await followerRef.remove();
+                    await followingRef.remove();
+                    const c = await db.ref(`users/${uid}/followersCount`).once('value');
+                    const cur = c.val() || 0;
+                    if (cur > 0) await db.ref(`users/${uid}/followersCount`).set(cur - 1);
+                    showToast('আনফলো করা হয়েছে');
+                    loadFriends(currentUser.uid);
+                } else {
+                    await followerRef.set(true);
+                    await followingRef.set(true);
+                    const c = await db.ref(`users/${uid}/followersCount`).once('value');
+                    const cur = c.val() || 0;
+                    await db.ref(`users/${uid}/followersCount`).set(cur + 1);
+                    showToast('ফলো ব্যাক করা হয়েছে!');
+                    loadFriends(currentUser.uid);
+                }
+
+                if (inboxViewState === 'followers') {
+                    await showFollowersList();
+                }
+            } catch (e) { showToast('ত্রুটি: ' + e.message); }
+        }
+
+        // ============================================================
+        // ADD VIDEO, LIKE, COMMENTS, SHARE
+        // ============================================================
+        document.getElementById('addVideoBtn').addEventListener('click', async () => {
+            const url = document.getElementById('videoLinkInput').value.trim();
+            if (!url) { showToast('ভিডিও লিংক দিন'); return; }
+            if (!currentUser) { showToast('লগইন করুন');
+                document.getElementById('authModal').classList.add('show'); return; }
+
+            const title = document.getElementById('videoTitleInput').value.trim() || 'Untitled';
+            const desc = document.getElementById('videoDescInput').value.trim() || '';
+
+            const videoData = {
+                url: url,
+                title: title,
+                description: desc,
+                uid: currentUser.uid,
+                username: currentUserProfile?.name || currentUser.email || 'User',
+                userAvatar: currentUserProfile?.photoURL || '',
+                timestamp: Date.now(),
+                views: 0,
+                likes: {},
+                comments: {},
+                viewedBy: {}
+            };
+
+            try {
+                const ref = db.ref('videos').push();
+                await ref.set(videoData);
+                document.getElementById('videoLinkInput').value = '';
+                document.getElementById('videoTitleInput').value = '';
+                document.getElementById('videoDescInput').value = '';
+                document.getElementById('addVideoModal').classList.remove('show');
+                showToast('ভিডিও যোগ করা হয়েছে! 🎬');
+                loadFeed();
+            } catch (e) { showToast('ত্রুটি: ' + e.message); }
+        });
+
+        document.getElementById('closeAddVideo').addEventListener('click', () => document.getElementById('addVideoModal')
+            .classList.remove('show'));
+        document.getElementById('addVideoModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) document.getElementById('addVideoModal').classList.remove('show');
+        });
+
+        async function toggleLike(videoId) {
+            if (!currentUser) { showToast('লগইন করুন');
+                document.getElementById('authModal').classList.add('show'); return; }
+            const ref = db.ref(`videos/${videoId}`);
+            try {
+                const snap = await ref.once('value');
+                const data = snap.val();
+                if (!data) return;
+                const likes = data.likes || {};
+                const uid = currentUser.uid;
+                if (likes[uid]) delete likes[uid];
+                else {
+                    likes[uid] = true;
+                    if (data.uid !== uid) {
+                        await db.ref(`users/${data.uid}/notifications`).push({
+                            type: 'like',
+                            from: uid,
+                            fromName: currentUserProfile?.name || currentUser.email || 'User',
+                            fromAvatar: currentUserProfile?.photoURL || '',
+                            videoId,
+                            videoTitle: data.title || '',
+                            timestamp: Date.now(),
+                            read: false
+                        });
+                    }
+                }
+                await ref.update({ likes });
+                const item = document.querySelector(`.video-item[data-id="${videoId}"]`);
+                if (item) {
+                    const likeBtn = item.querySelector('.side-actions button:first-child');
+                    const countSpan = likeBtn.querySelector('.count');
+                    const iconSpan = likeBtn.querySelector('.icon');
+                    const newLikes = Object.keys(likes).length;
+                    countSpan.textContent = formatNumber(newLikes);
+                    if (likes[uid]) {
+                        likeBtn.classList.add('liked');
+                        iconSpan.textContent = '❤️';
+                    } else {
+                        likeBtn.classList.remove('liked');
+                        iconSpan.textContent = '🤍';
+                    }
+                }
+            } catch (e) { showToast('ত্রুটি: ' + e.message); }
+        }
+
+        // ============================================================
+        // COMMENT MODAL SYSTEM with DELETE via LONG PRESS
+        // ============================================================
+        function openComments(videoId) {
+            if (!currentUser) {
+                showToast('লগইন করুন');
+                document.getElementById('authModal').classList.add('show');
+                return;
+            }
+            commentVideoId = videoId;
+            const modal = document.getElementById('commentModal');
+            modal.classList.add('show');
+            document.getElementById('commentInput').value = '';
+            loadComments(videoId);
+        }
+
+        function loadComments(videoId) {
+            const container = document.getElementById('commentList');
+            if (commentListener) { commentListener();
+                commentListener = null; }
+
+            commentListener = db.ref(`videos/${videoId}/comments`).orderByChild('timestamp').on('value', async (snap) => {
+                const data = snap.val();
+                if (!data) {
+                    container.innerHTML = `
+                        <div class="empty-comments">
+                            <span class="icon">💬</span>
+                            <p>কোনো কমেন্ট নেই। প্রথম কমেন্ট করুন!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const entries = Object.entries(data).sort((a, b) => a[1].timestamp - b[1].timestamp);
+                let html = '';
+                for (const [key, comment] of entries) {
+                    const userUid = comment.uid || '';
+                    const userName = comment.username || 'Unknown';
+                    let userPhoto = '';
+                    if (userUid) {
+                        try {
+                            const userSnap = await db.ref(`users/${userUid}/photoURL`).once('value');
+                            userPhoto = userSnap.val() || '';
+                        } catch (e) {}
+                    }
+                    const time = new Date(comment.timestamp).toLocaleString();
+                    const isOwn = currentUser && userUid === currentUser.uid;
+                    html += `
+                        <div class="comment-item" data-key="${key}" data-uid="${userUid}" data-own="${isOwn}">
+                            <div class="c-avatar" onclick="openProfile('${userUid}')">
+                                ${userPhoto ? `<img src="${userPhoto}" alt="">` : getInitials(userName)}
+                            </div>
+                            <div class="c-body">
+                                <div class="c-name" onclick="openProfile('${userUid}')">${userName}</div>
+                                <div class="c-text">${comment.text}</div>
+                                <div class="c-time">${time}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                container.innerHTML = html;
+                container.scrollTop = container.scrollHeight;
+
+                // Attach long press listeners for delete
+                const items = container.querySelectorAll('.comment-item');
+                items.forEach(item => {
+                    const isOwn = item.dataset.own === 'true';
+                    if (!isOwn) return;
+
+                    let pressTimer = null;
+                    const startPress = (e) => {
+                        pressTimer = setTimeout(() => {
+                            const key = item.dataset.key;
+                            if (key) {
+                                if (navigator.vibrate) navigator.vibrate(50);
+                                if (confirm('এই কমেন্ট ডিলিট করতে চান?')) {
+                                    deleteComment(commentVideoId, key);
+                                }
+                            }
+                            pressTimer = null;
+                        }, 600);
+                    };
+                    const endPress = () => {
+                        if (pressTimer) {
+                            clearTimeout(pressTimer);
+                            pressTimer = null;
+                        }
+                    };
+
+                    item.removeEventListener('touchstart', startPress);
+                    item.removeEventListener('touchend', endPress);
+                    item.removeEventListener('touchmove', endPress);
+                    item.removeEventListener('mousedown', startPress);
+                    item.removeEventListener('mouseup', endPress);
+                    item.removeEventListener('mouseleave', endPress);
+
+                    item.addEventListener('touchstart', startPress, { passive: true });
+                    item.addEventListener('touchend', endPress, { passive: true });
+                    item.addEventListener('touchmove', endPress, { passive: true });
+                    item.addEventListener('mousedown', startPress);
+                    item.addEventListener('mouseup', endPress);
+                    item.addEventListener('mouseleave', endPress);
+                });
+            });
+        }
+
+        async function deleteComment(videoId, commentKey) {
+            if (!currentUser) return;
+            try {
+                const commentRef = db.ref(`videos/${videoId}/comments/${commentKey}`);
+                const snap = await commentRef.once('value');
+                const data = snap.val();
+                if (!data) { showToast('কমেন্ট পাওয়া যায়নি'); return; }
+                if (data.uid !== currentUser.uid) { showToast('আপনি এই কমেন্ট ডিলিট করতে পারবেন না'); return; }
+                await commentRef.remove();
+                showToast('কমেন্ট ডিলিট করা হয়েছে 🗑️');
+                const item = document.querySelector(`.video-item[data-id="${videoId}"]`);
+                if (item) {
+                    const commentBtn = item.querySelector('.side-actions button:nth-child(2) .count');
+                    if (commentBtn) {
+                        const snap2 = await db.ref(`videos/${videoId}/comments`).once('value');
+                        const data2 = snap2.val();
+                        const count = data2 ? Object.keys(data2).length : 0;
+                        commentBtn.textContent = formatNumber(count);
+                    }
+                }
+            } catch (e) {
+                showToast('ত্রুটি: ' + e.message);
+            }
+        }
+
+        document.getElementById('closeCommentModal').addEventListener('click', () => {
+            document.getElementById('commentModal').classList.remove('show');
+            if (commentListener) { commentListener();
+                commentListener = null; }
+            commentVideoId = null;
+        });
+
+        document.getElementById('commentSendBtn').addEventListener('click', () => {
+            sendComment();
+        });
+        document.getElementById('commentInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendComment();
+        });
+
+        async function sendComment() {
+            const input = document.getElementById('commentInput');
+            const text = input.value.trim();
+            if (!text || !commentVideoId || !currentUser) {
+                if (!currentUser) showToast('লগইন করুন');
+                return;
+            }
+            input.value = '';
+            try {
+                const videoSnap = await db.ref(`videos/${commentVideoId}`).once('value');
+                const videoData = videoSnap.val();
+                const comment = {
+                    uid: currentUser.uid,
+                    username: currentUserProfile?.name || currentUser.email || 'User',
+                    text: text,
+                    timestamp: Date.now()
+                };
+                await db.ref(`videos/${commentVideoId}/comments`).push(comment);
+                if (videoData && videoData.uid !== currentUser.uid) {
+                    await db.ref(`users/${videoData.uid}/notifications`).push({
+                        type: 'comment',
+                        from: currentUser.uid,
+                        fromName: currentUserProfile?.name || currentUser.email || 'User',
+                        videoId: commentVideoId,
+                        videoTitle: videoData.title || '',
+                        timestamp: Date.now(),
+                        read: false
+                    });
+                }
+                showToast('কমেন্ট পোস্ট করা হয়েছে! 💬');
+                const item = document.querySelector(`.video-item[data-id="${commentVideoId}"]`);
+                if (item) {
+                    const commentBtn = item.querySelector('.side-actions button:nth-child(2) .count');
+                    if (commentBtn) {
+                        const snap = await db.ref(`videos/${commentVideoId}/comments`).once('value');
+                        const data = snap.val();
+                        const count = data ? Object.keys(data).length : 0;
+                        commentBtn.textContent = formatNumber(count);
+                    }
+                }
+            } catch (e) {
+                showToast('ত্রুটি: ' + e.message);
+            }
+        }
+
+        // ============================================================
+        // SHARE
+        // ============================================================
+        function shareVideo(videoId) {
+            const url = `${window.location.origin}?video=${videoId}`;
+            if (navigator.share) navigator.share({ title: 'Pik-Pok ভিডিও', url });
+            else navigator.clipboard.writeText(url).then(() => showToast('লিংক কপি করা হয়েছে!')).catch(() => showToast(
+                'লিংক: ' + url));
+        }
+
+        async function deleteVideo(videoId) {
+            if (!currentUser) return;
+            if (!confirm('ভিডিও ডিলিট করবেন?')) return;
+            try {
+                const ref = db.ref(`videos/${videoId}`);
+                const snap = await ref.once('value');
+                const data = snap.val();
+                if (!data || data.uid !== currentUser.uid) { showToast('আপনি এই ভিডিও ডিলিট করতে পারবেন না'); return; }
+                await ref.remove();
+                showToast('ডিলিট করা হয়েছে 🗑️');
+                loadFeed();
+            } catch (e) { showToast('ত্রুটি: ' + e.message); }
+        }
+
+        // ============================================================
+        // PROFILE
+        // ============================================================
+        async function openProfile(uid) {
+            if (!uid) return;
+            const modal = document.getElementById('profileModal');
+            modal.classList.add('show');
+            document.getElementById('profileContainer').innerHTML =
+                `<div style="text-align:center;padding:40px 0;color:#888;">লোড হচ্ছে...</div>`;
+            await renderProfile(uid);
+        }
+
+        async function renderProfile(uid) {
+            const container = document.getElementById('profileContainer');
+            try {
+                const [userSnap, videosSnap, followersSnap] = await Promise.all([
+                    db.ref(`users/${uid}`).once('value'),
+                    db.ref('videos').orderByChild('uid').equalTo(uid).once('value'),
+                    db.ref(`users/${uid}/followers`).once('value')
+                ]);
+                const userData = userSnap.val();
+                if (!userData) { container.innerHTML = '<p style="color:#888;text-align:center;">প্রোফাইল পাওয়া যায়নি</p>'; return; }
+
+                const videos = videosSnap.val() || {};
+                const videoList = Object.entries(videos);
+                const followerCount = followersSnap.val() ? Object.keys(followersSnap.val()).length : 0;
+
+                let isFollowing = false;
+                let isBlocked = false;
+                if (currentUser) {
+                    const fs = await db.ref(`users/${uid}/followers/${currentUser.uid}`).once('value');
+                    isFollowing = !!fs.val();
+                    if (currentUserProfile?.blocked && currentUserProfile.blocked[userData.email]) isBlocked = true;
+                }
+
+                const isOwnProfile = currentUser && currentUser.uid === uid;
+                const name = userData.name || 'User';
+                const photo = userData.photoURL || '';
+
+                const followingSnap = await db.ref(`users/${uid}/following`).once('value');
+                const followingData = followingSnap.val() || {};
+                const followingCount = Object.keys(followingData).length;
+
+                let totalLikes = 0;
+                videoList.forEach(([id, v]) => {
+                    if (v.likes) totalLikes += Object.keys(v.likes).length;
+                });
+
+                let videosHtml = '';
+                if (videoList.length === 0) videosHtml = '<p style="color:#666;text-align:center;padding:20px;">কোনো ভিডিও নেই</p>';
+                else {
+                    videosHtml = '<div class="profile-videos">';
+                    videoList.forEach(([id, video]) => {
+                        const thumb = video.thumbnail || getThumbnail(video.url) || '';
+                        const likes = video.likes ? Object.keys(video.likes).length : 0;
+                        const views = video.views || 0;
+                        videosHtml += `
+                                <div class="grid-item" onclick="openVideoPlayer('${id}')">
+                                    ${thumb ? `<img src="${thumb}" alt="">` : ''}
+                                    <video src="${video.url}" muted preload="metadata"></video>
+                                    <div class="grid-stats"><span>❤️ ${formatNumber(likes)}</span><span>👁️ ${formatNumber(views)}</span></div>
+                                    ${isOwnProfile ? `<button class="delete-btn" onclick="event.stopPropagation();deleteVideo('${id}')">🗑️</button>` : ''}
+                                </div>
+                            `;
+                    });
+                    videosHtml += '</div>';
+                }
+
+                container.innerHTML = `
+                        <div class="profile-header">
+                            <div class="big-avatar">${photo ? `<img src="${photo}" alt="">` : getInitials(name)}</div>
+                            <div class="profile-name">${name}</div>
+                            ${userData.private ? '<div style="color:#ff6b6b;font-size:13px;">🔒 Private</div>' : ''}
+                            ${isBlocked ? '<div style="color:#ff4757;font-size:13px;">🚫 Blocked</div>' : ''}
+                        </div>
+                        <div class="profile-stats">
+                            <div class="stat" onclick="showList('${uid}','followers')">
+                                <div class="num">${formatNumber(followerCount)}</div>
+                                <div class="label">Followers</div>
+                            </div>
+                            <div class="stat" onclick="showList('${uid}','following')">
+                                <div class="num">${formatNumber(followingCount)}</div>
+                                <div class="label">Following</div>
+                            </div>
+                            <div class="stat">
+                                <div class="num">${formatNumber(videoList.length)}</div>
+                                <div class="label">ভিডিও</div>
+                            </div>
+                            <div class="stat">
+                                <div class="num">${formatNumber(totalLikes)}</div>
+                                <div class="label">Likes</div>
+                            </div>
+                        </div>
+                        <div class="profile-actions">
+                            ${!isOwnProfile && currentUser ? `
+                                ${!isBlocked ? `
+                                    <button class="follow-btn ${isFollowing ? 'following' : ''}" onclick="toggleFollow('${uid}')">
+                                        ${isFollowing ? 'Following' : 'Follow'}
+                                    </button>
+                                    <button class="message-btn" onclick="openChat('${uid}')">💬 Message</button>
+                                    <button class="block-btn" onclick="blockUser('${uid}')">🚫 Block</button>
+                                ` : `
+                                    <button class="block-btn" onclick="unblockUser('${uid}')" style="background:#1a1a1a;color:#4caf50;border-color:#4caf50;">🔓 Unblock</button>
+                                `}
+                            ` : ''}
+                            ${isOwnProfile ? `<button class="settings-btn" onclick="openSettings()">⚙️ Edit</button>` : ''}
+                            ${!currentUser ? `<button class="follow-btn" onclick="showToast('লগইন করুন');document.getElementById('authModal').classList.add('show')">Follow</button>` : ''}
+                        </div>
+                        <h4 style="margin:12px 0;color:#aaa;">ভিডিওসমূহ</h4>
+                        ${videosHtml}
+                    `;
+            } catch (e) {
+                container.innerHTML = `<p style="color:#ff4757;text-align:center;">ত্রুটি: ${e.message}</p>`;
+            }
+        }
+
+        function openVideoPlayer(videoId) {
+            const feed = document.getElementById('videoFeed');
+            const items = feed.querySelectorAll('.video-item');
+            let index = -1;
+            items.forEach((item, i) => { if (item.dataset.id === videoId) index = i; });
+            if (index >= 0) {
+                const target = items[index];
+                target.scrollIntoView({ behavior: 'smooth' });
+                setTimeout(() => { const video = target.querySelector('video'); if (video) video.play().catch(() => {}); },
+                300);
+            } else showToast('ভিডিও খুঁজে পাওয়া যায়নি');
+        }
+
+        document.getElementById('closeProfile').addEventListener('click', () => document.getElementById('profileModal')
+            .classList.remove('show'));
+        document.getElementById('profileModal').addEventListener('click', (e) => { if (e.target === e.currentTarget)
+                document.getElementById('profileModal').classList.remove('show'); });
+
+        // ============================================================
+        // FOLLOW / UNFOLLOW
+        // ============================================================
+        async function toggleFollow(uid) {
+            if (!currentUser) { showToast('লগইন করুন'); return; }
+            if (uid === currentUser.uid) return;
+
+            const followerRef = db.ref(`users/${uid}/followers/${currentUser.uid}`);
+            const followingRef = db.ref(`users/${currentUser.uid}/following/${uid}`);
+
+            try {
+                const snap = await followerRef.once('value');
+                if (snap.val()) {
+                    await followerRef.remove();
+                    await followingRef.remove();
+                    const c = await db.ref(`users/${uid}/followersCount`).once('value');
+                    const cur = c.val() || 0;
+                    if (cur > 0) await db.ref(`users/${uid}/followersCount`).set(cur - 1);
+                    showToast('আনফলো করা হয়েছে');
+                    loadFriends(currentUser.uid);
+                } else {
+                    await followerRef.set(true);
+                    await followingRef.set(true);
+                    const c = await db.ref(`users/${uid}/followersCount`).once('value');
+                    const cur = c.val() || 0;
+                    await db.ref(`users/${uid}/followersCount`).set(cur + 1);
+                    await db.ref(`users/${uid}/notifications`).push({
+                        type: 'follow',
+                        from: currentUser.uid,
+                        fromName: currentUserProfile?.name || currentUser.email || 'User',
+                        timestamp: Date.now(),
+                        read: false
+                    });
+                    showToast('ফলো করেছেন!');
+                    loadFriends(currentUser.uid);
+                }
+                await renderProfile(uid);
+            } catch (e) { showToast('ত্রুটি: ' + e.message); }
+        }
+
+        // ============================================================
+        // BLOCK / UNBLOCK
+        // ============================================================
+        async function blockUser(uid) {
+            if (!currentUser) return;
+            if (uid === currentUser.uid) return;
+            if (!confirm('এই ব্যবহারকারীকে ব্লক করবেন? তার ভিডিও দেখা যাবে না।')) return;
+            try {
+                const userSnap = await db.ref(`users/${uid}`).once('value');
+                const userData = userSnap.val();
+                if (!userData) { showToast('ব্যবহারকারী পাওয়া যায়নি'); return; }
+                const blocked = currentUserProfile?.blocked || {};
+                blocked[userData.email] = true;
+                await db.ref(`users/${currentUser.uid}/blocked`).set(blocked);
+                currentUserProfile.blocked = blocked;
+                showToast(`${userData.name || 'User'} ব্লক করা হয়েছে 🚫`);
+                await renderProfile(uid);
+            } catch (e) { showToast('ত্রুটি: ' + e.message); }
+        }
+
+        async function unblockUser(uid) {
+            if (!currentUser) return;
+            try {
+                const userSnap = await db.ref(`users/${uid}`).once('value');
+                const userData = userSnap.val();
+                if (!userData) { showToast('ব্যবহারকারী পাওয়া যায়নি'); return; }
+                const blocked = currentUserProfile?.blocked || {};
+                if (blocked[userData.email]) {
+                    delete blocked[userData.email];
+                    await db.ref(`users/${currentUser.uid}/blocked`).set(blocked);
+                    currentUserProfile.blocked = blocked;
+                    showToast(`${userData.name || 'User'} আনব্লক করা হয়েছে 🔓`);
+                    await renderProfile(uid);
+                } else showToast('এই ব্যবহারকারী ব্লক করা নেই');
+            } catch (e) { showToast('ত্রুটি: ' + e.message); }
+        }
+
+        // ============================================================
+        // FULL SCREEN LIST (Followers / Following)
+        // ============================================================
+        async function showList(uid, type) {
+            const modal = document.getElementById('listModal');
+            const container = document.getElementById('listContainer');
+            const title = document.getElementById('listTitle');
+
+            if (type === 'followers') title.textContent = '👥 Followers';
+            else if (type === 'following') title.textContent = '👤 Following';
+
+            modal.classList.add('show');
+            container.innerHTML = '<div style="text-align:center;color:#888;padding:40px 0;">লোড হচ্ছে...</div>';
+
+            try {
+                let listData = {};
+                if (type === 'followers') {
+                    const snap = await db.ref(`users/${uid}/followers`).once('value');
+                    listData = snap.val() || {};
+                } else if (type === 'following') {
+                    const snap = await db.ref(`users/${uid}/following`).once('value');
+                    listData = snap.val() || {};
+                } else return;
+
+                const userIds = Object.keys(listData);
+                if (userIds.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <span class="icon">👤</span>
+                            <h4>${type === 'followers' ? 'কোনো Followers নেই' : 'কাউকে Follow করেননি'}</h4>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                for (const fid of userIds) {
+                    const userSnap = await db.ref(`users/${fid}`).once('value');
+                    const user = userSnap.val();
+                    if (user) {
+                        const name = user.name || 'User';
+                        const photo = user.photoURL || '';
+                        const isOwn = currentUser && currentUser.uid === fid;
+
+                        let isFollowing = false;
+                        if (currentUser && !isOwn) {
+                            const fs = await db.ref(`users/${fid}/followers/${currentUser.uid}`).once('value');
+                            isFollowing = !!fs.val();
+                        }
+
+                        html += `
+                            <div class="list-item">
+                                <div class="list-user" onclick="openProfile('${fid}');document.getElementById('listModal').classList.remove('show');">
+                                    <div class="list-avatar">${photo ? `<img src="${photo}" alt="">` : getInitials(name)}</div>
+                                    <span class="list-name">${name}</span>
+                                </div>
+                                <div class="list-actions">
+                                    ${!isOwn && currentUser ? `
+                                        <button class="${isFollowing ? 'following' : ''}" onclick="toggleFollowFromList('${fid}', '${type}')">
+                                            ${isFollowing ? 'Following' : 'Follow'}
+                                        </button>
+                                    ` : ''}
+                                    ${!isOwn ? `<button class="chat-btn" onclick="openChat('${fid}');document.getElementById('listModal').classList.remove('show');">💬</button>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = `<p style="color:#ff4757;text-align:center;padding:40px 0;">ত্রুটি: ${e.message}</p>`;
+            }
+        }
+
+        async function toggleFollowFromList(uid, listType) {
+            if (!currentUser) { showToast('লগইন করুন'); return; }
+            if (uid === currentUser.uid) return;
+            const followerRef = db.ref(`users/${uid}/followers/${currentUser.uid}`);
+            const followingRef = db.ref(`users/${currentUser.uid}/following/${uid}`);
+            try {
+                const snap = await followerRef.once('value');
+                if (snap.val()) {
+                    await followerRef.remove();
+                    await followingRef.remove();
+                    const c = await db.ref(`users/${uid}/followersCount`).once('value');
+                    const cur = c.val() || 0;
+                    if (cur > 0) await db.ref(`users/${uid}/followersCount`).set(cur - 1);
+                    showToast('আনফলো করা হয়েছে');
+                    loadFriends(currentUser.uid);
+                } else {
+                    await followerRef.set(true);
+                    await followingRef.set(true);
+                    const c = await db.ref(`users/${uid}/followersCount`).once('value');
+                    const cur = c.val() || 0;
+                    await db.ref(`users/${uid}/followersCount`).set(cur + 1);
+                    showToast('ফলো করেছেন!');
+                    loadFriends(currentUser.uid);
+                }
+                if (document.getElementById('listModal').classList.contains('show')) {
+                    const title = document.getElementById('listTitle').textContent;
+                    let type = 'following';
+                    if (title.includes('Followers')) type = 'followers';
+                    await showList(window._currentListUid || uid, type);
+                }
+            } catch (e) { showToast('ত্রুটি: ' + e.message); }
+        }
+
+        window._currentListUid = null;
+        const originalShowList = showList;
+        showList = async function(uid, type) {
+            window._currentListUid = uid;
+            await originalShowList(uid, type);
+        };
+
+        document.getElementById('closeList').addEventListener('click', () => document.getElementById('listModal').classList
+            .remove('show'));
+        document.getElementById('listModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) document.getElementById('listModal').classList.remove('show');
+        });
+
+        // ============================================================
+        // CHAT
+        // ============================================================
+        function openChat(uid) {
+            if (!currentUser) { showToast('লগইন করুন'); return; }
+            if (uid === currentUser.uid) { showToast('নিজের সাথে চ্যাট করা যায় না'); return; }
+            chatWithUid = uid;
+            currentChatId = [currentUser.uid, uid].sort().join('_');
+            const modal = document.getElementById('chatModal');
+            modal.classList.add('show');
+            document.getElementById('chatMessages').innerHTML = '';
+            document.getElementById('chatInput').value = '';
+
+            db.ref(`users/${uid}`).once('value').then(snap => {
+                const data = snap.val();
+                if (data) {
+                    chatWithName = data.name || 'User';
+                    document.getElementById('chatUserName').textContent = chatWithName;
+                    const avatar = document.getElementById('chatAvatar');
+                    if (data.photoURL) avatar.innerHTML =
+                        `<img src="${data.photoURL}" style="width:100%;height:100%;object-fit:cover;">`;
+                    else avatar.innerHTML =
+                        `<span style="display:flex;align-items:center;justify-content:center;height:100%;font-size:18px;">${getInitials(data.name)}</span>`;
+                }
+            });
+
+            if (chatListener) { chatListener();
+                chatListener = null; }
+            chatListener = db.ref(`chats/${currentChatId}/messages`).orderByChild('timestamp').limitToLast(50).on('value',
+                (snap) => {
+                    const msgs = snap.val();
+                    const container = document.getElementById('chatMessages');
+                    container.innerHTML = '';
+                    if (msgs) {
+                        const entries = Object.entries(msgs).sort((a, b) => a[1].timestamp - b[1].timestamp);
+                        entries.forEach(([key, msg]) => {
+                            const isSent = msg.from === currentUser.uid;
+                            const div = document.createElement('div');
+                            div.className = `msg ${isSent ? 'sent' : 'received'}`;
+                            div.dataset.msgKey = key;
+                            div.innerHTML =
+                                `${msg.text}<div class="time">${new Date(msg.timestamp).toLocaleTimeString()}</div>${isSent ? `<button class="delete-msg-btn" onclick="deleteMessage('${key}')">✕</button>` : ''}`;
+                            container.appendChild(div);
+                        });
+                        container.scrollTop = container.scrollHeight;
+                    }
+                });
+        }
+
+        async function deleteMessage(msgKey) {
+            if (!currentUser || !currentChatId) return;
+            if (!confirm('এই মেসেজ ডিলিট করবেন?')) return;
+            try { await db.ref(`chats/${currentChatId}/messages/${msgKey}`).remove();
+                showToast('মেসেজ ডিলিট করা হয়েছে'); } catch (e) { showToast('ত্রুটি: ' + e.message); }
+        }
+
+        document.getElementById('deleteChatBtn').addEventListener('click', async () => {
+            if (!currentUser || !currentChatId) return;
+            if (!confirm('সমস্ত চ্যাট ইতিহাস ডিলিট করবেন? (শুধু আপনার জন্য)')) return;
+            try { await db.ref(`chats/${currentChatId}/messages`).remove();
+                showToast('সমস্ত চ্যাট ডিলিট করা হয়েছে');
+                document.getElementById('chatMessages').innerHTML = ''; } catch (e) { showToast('ত্রুটি: ' + e.message); }
+        });
+
+        document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
+        document.getElementById('chatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter')
+            sendChatMessage(); });
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text || !chatWithUid || !currentUser) return;
+            input.value = '';
+            const chatId = [currentUser.uid, chatWithUid].sort().join('_');
+            try {
+                await db.ref(`chats/${chatId}/messages`).push({ from: currentUser.uid, text: text, timestamp: Date
+                        .now() });
+                await db.ref(`users/${currentUser.uid}/chats/${chatId}`).set({ with: chatWithUid, lastMsg: text,
+                    timestamp: Date.now() });
+                await db.ref(`users/${chatWithUid}/chats/${chatId}`).set({ with: currentUser.uid, lastMsg: text,
+                    timestamp: Date.now() });
+            } catch (e) { showToast('ত্রুটি: ' + e.message); }
+        }
+
+        document.getElementById('closeChat').addEventListener('click', () => {
+            document.getElementById('chatModal').classList.remove('show');
+            if (chatListener) { chatListener();
+                chatListener = null; }
+            chatWithUid = null;
+            currentChatId = null;
+        });
+
+        // ============================================================
+        // SETTINGS
+        // ============================================================
+        function openSettings() {
+            if (!currentUser) { showToast('লগইন করুন'); return; }
+            document.getElementById('settingsModal').classList.add('show');
+            document.getElementById('profileNameInput').value = currentUserProfile?.name || '';
+            document.getElementById('profilePicUrl').value = currentUserProfile?.photoURL || '';
+            updateSettingsPreview();
+            const priv = currentUserProfile?.private || false;
+            const sw = document.getElementById('privateSwitch');
+            sw.classList.toggle('active', priv);
+            sw.dataset.state = priv ? 'on' : 'off';
+            sw.onclick = () => {
+                const newState = sw.dataset.state === 'on' ? false : true;
+                sw.dataset.state = newState ? 'on' : 'off';
+                sw.classList.toggle('active', newState);
+                db.ref(`users/${currentUser.uid}/private`).set(newState);
+                showToast(newState ? '🔒 Private mode on' : '🔓 Private mode off');
+            };
+        }
+
+        function updateSettingsPreview() {
+            const url = document.getElementById('profilePicUrl').value.trim();
+            const img = document.getElementById('settingsAvatarImg');
+            const text = document.getElementById('settingsAvatarText');
+            if (url) {
+                img.src = url;
+                img.style.display = 'block';
+                text.style.display = 'none';
+                img.onerror = () => { img.style.display = 'none';
+                    text.style.display = 'flex';
+                    text.textContent = '❌'; };
+            } else {
+                img.style.display = 'none';
+                text.style.display = 'flex';
+                text.textContent = '👤';
+            }
+        }
+        document.getElementById('profilePicUrl').addEventListener('input', updateSettingsPreview);
+
+        document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+            if (!currentUser) return;
+            const name = document.getElementById('profileNameInput').value.trim() || 'User';
+            const photoURL = document.getElementById('profilePicUrl').value.trim();
+            const btn = document.getElementById('saveSettingsBtn');
+            btn.disabled = true;
+            btn.textContent = 'সেভ হচ্ছে...';
+            try {
+                await db.ref(`users/${currentUser.uid}`).update({ name, photoURL });
+                currentUserProfile = { ...currentUserProfile, name, photoURL };
+                const snap = await db.ref('videos').orderByChild('uid').equalTo(currentUser.uid).once('value');
+                const videos = snap.val();
+                if (videos) {
+                    const updates = {};
+                    Object.keys(videos).forEach(id => { updates[`${id}/username`] = name;
+                        updates[`${id}/userAvatar`] = photoURL; });
+                    await db.ref('videos').update(updates);
+                }
+                document.getElementById('settingsModal').classList.remove('show');
+                updateAuthUI(currentUser);
+                showToast('প্রোফাইল আপডেট হয়েছে! ✅');
+                if (document.getElementById('profileModal').classList.contains('show')) await renderProfile(currentUser
+                    .uid);
+            } catch (e) { showToast('ত্রুটি: ' + e.message); }
+            btn.disabled = false;
+            btn.textContent = '💾 সেভ করুন';
+        });
+
+        document.getElementById('blockedBtn').addEventListener('click', async () => {
+            if (!currentUser) return;
+            const blocked = currentUserProfile?.blocked || {};
+            const list = Object.keys(blocked);
+            if (list.length === 0) { showToast('কোনো blocked অ্যাকাউন্ট নেই'); return; }
+            const msg = 'Blocked accounts:\n' + list.join('\n') + '\n\nটাইপ করুন unblock:email (যেমন unblock:user@email)';
+            const input = prompt(msg);
+            if (input && input.startsWith('unblock:')) {
+                const email = input.replace('unblock:', '').trim();
+                if (blocked[email]) {
+                    delete blocked[email];
+                    await db.ref(`users/${currentUser.uid}/blocked`).set(blocked);
+                    currentUserProfile.blocked = blocked;
+                    showToast(`${email} আনব্লক করা হয়েছে`);
+                } else showToast('এই ইমেইল blocked নয়');
+            }
+        });
+
+        document.getElementById('analyticsBtn').addEventListener('click', async () => {
+            if (!currentUser) return;
+            try {
+                const snap = await db.ref('videos').orderByChild('uid').equalTo(currentUser.uid).once('value');
+                const data = snap.val();
+                let totalViews = 0,
+                    totalLikes = 0,
+                    totalComments = 0,
+                    count = 0;
+                if (data) {
+                    Object.values(data).forEach(v => {
+                        count++;
+                        totalViews += v.views || 0;
+                        totalLikes += v.likes ? Object.keys(v.likes).length : 0;
+                        totalComments += v.comments ? Object.keys(v.comments).length : 0;
+                    });
+                }
+                showToast(`📊 ভিডিও: ${count} | 👁️ ${totalViews} | ❤️ ${totalLikes} | 💬 ${totalComments}`);
+            } catch (e) { showToast('ত্রুটি: ' + e.message); }
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            if (confirm('লগআউট করতে চান?')) { await auth.signOut();
+                document.getElementById('settingsModal').classList.remove('show');
+                showToast('লগআউট করা হয়েছে'); }
+        });
+
+        document.getElementById('closeSettings').addEventListener('click', () => document.getElementById('settingsModal')
+            .classList.remove('show'));
+        document.getElementById('settingsModal').addEventListener('click', (e) => { if (e.target === e.currentTarget)
+                document.getElementById('settingsModal').classList.remove('show'); });
+        document.getElementById('refreshBtn').addEventListener('click', () => { loadFeed();
+            showToast('রিফ্রেশ করা হয়েছে'); });
+
+        // ============================================================
+        // INIT
+        // ============================================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoParam = urlParams.get('video');
+        if (videoParam) {
+            setTimeout(() => {
+                const feed = document.getElementById('videoFeed');
+                const items = feed.querySelectorAll('.video-item');
+                items.forEach((item) => {
+                    if (item.dataset.id === videoParam) {
+                        item.scrollIntoView({ behavior: 'smooth' });
+                        setTimeout(() => { const v = item.querySelector('video'); if (v) v.play().catch(() =>
+                            {}); }, 300);
+                    }
+                });
+            }, 1000);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.getElementById('profileModal').classList.remove('show');
+                document.getElementById('settingsModal').classList.remove('show');
+                document.getElementById('authModal').classList.remove('show');
+                document.getElementById('chatModal').classList.remove('show');
+                document.getElementById('listModal').classList.remove('show');
+                document.getElementById('addVideoModal').classList.remove('show');
+                document.getElementById('searchModal').classList.remove('show');
+                document.getElementById('commentModal').classList.remove('show');
+                if (commentListener) { commentListener();
+                    commentListener = null; }
+                commentVideoId = null;
+            }
+        });
+
+        console.log('🎬 Pik-Pok - Search now includes users with follow button');
+    </script>
+</body>
+  </html>
